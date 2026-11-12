@@ -223,7 +223,9 @@ function calView(){
   }
   const now=new Date();
   const up=S.notes.filter(n=>!n.done&&noteDT(n)>=now).sort((a,b)=>noteDT(a)-noteDT(b)).slice(0,5);
-  h+='<div class="sec">Yaklaşan notlar</div>';
+  const late=S.notes.filter(n=>!n.done&&noteDT(n)<now).sort((a,b)=>noteDT(a)-noteDT(b));
+  h+='<div class="sec" style="display:flex;align-items:center;justify-content:space-between">Yaklaşan notlar'+(late.length?'<button onclick="App.lateT()" style="border:0;background:var(--red);color:#fff;border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700;text-transform:none;letter-spacing:0">'+late.length+' geciken '+(V.showLate?'▴':'▾')+'</button>':'')+'</div>';
+  if(V.showLate&&late.length)h+='<div style="margin-bottom:10px">'+late.map(n=>noteCard(n,true)).join('')+'</div>';
   h+= up.length? up.map(upCard).join('') : '<div class="empty">Yaklaşan not yok. + ile ekleyin.</div>';
   const lb=lastBackupDays();
   if(lb==null?(S.notes.length+S.customers.length+S.suppliers.length+S.imports.length)>0:lb>=7)h+='<div class="card row" onclick="App.tab(\'yedek\')"><span class="grow">⚠️ '+(lb==null?'Henüz yedek almadınız.':lb+' gündür yedek almadınız.')+'</span><b style="color:var(--pri)">Yedekle ›</b></div>';
@@ -239,6 +241,7 @@ function upCard(n){
   return h;
 }
 App.upT=id=>{OPEN[id]=!OPEN[id];render()};
+App.lateT=()=>{V.showLate=!V.showLate;render()};
 App.mon=d=>{V.month=new Date(V.month.getFullYear(),V.month.getMonth()+d,1);render()};
 App.sel=k=>{V.sel=k;render()};
 App.toggleNote=async id=>{const n=byId('notes',id);if(!n)return;const c=Object.assign({},n);delete c.id;c.done=!n.done;await save('notes',id,c)};
