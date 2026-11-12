@@ -76,6 +76,14 @@ label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin:10px 
 .banner{background:#fdecea;color:#8e2a1f;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px}
 .copy{border:0;background:var(--pri2);color:var(--pri);border-radius:8px;font-size:12px;font-weight:700;padding:4px 8px;margin-left:6px}
 .tot{font-size:17px;font-weight:800}
+.up{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:12px;padding:8px 12px;margin-bottom:7px}
+.up .dt{flex:none;width:44px;text-align:center;line-height:1.1}
+.up .dt b{display:block;font-size:20px;color:var(--pri)}
+.up .dt span{font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase}
+.up .arr{color:var(--mut);font-size:13px;transition:transform .2s}
+.up.open .arr{transform:rotate(90deg)}
+.upbody{background:var(--card);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;margin:-9px 0 7px;padding:12px 14px 12px 70px}
+.up.open{border-radius:12px 12px 0 0}
 </style>
 </head>
 <body>
@@ -106,6 +114,7 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const TODAY=ymd(new Date());
+const OPEN={};
 const V={tab:'takvim',detail:null,stack:[],month:new Date(new Date().getFullYear(),new Date().getMonth(),1),sel:TODAY,impF:'all',cusF:'bal',q:''};
 const TABT={yedek:'Yedekleme',takvim:'Takvim',tedarikciler:'Tedarikçiler',ithalatlar:'İthalatlar',musteriler:'Müşteriler'};
 const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -208,15 +217,28 @@ function calView(){
   }
   h+='</div></div>';
   const day=S.notes.filter(n=>n.date===V.sel).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
-  h+='<div class="sec">'+fDate(V.sel)+(V.sel===TODAY?' · Bugün':'')+'</div>';
-  h+= day.length? day.map(n=>noteCard(n,false)).join('') : '<div class="empty">Bu gün için not yok. + ile ekleyin.</div>';
-  const now=new Date(); const lim=new Date(now.getTime()+7*864e5);
-  const up=S.notes.filter(n=>!n.done&&n.date!==V.sel&&noteDT(n)<=lim).sort((a,b)=>noteDT(a)-noteDT(b));
-  if(up.length){h+='<div class="sec">Gecikenler ve önümüzdeki 7 gün</div>'+up.map(n=>noteCard(n,true)).join('')}
+  if(day.length||V.sel!==TODAY){
+    h+='<div class="sec">'+fDate(V.sel)+(V.sel===TODAY?' · Bugün':'')+'</div>';
+    h+= day.length? day.map(n=>noteCard(n,false)).join('') : '<div class="empty" style="padding:10px">Bu gün için not yok.</div>';
+  }
+  const now=new Date();
+  const up=S.notes.filter(n=>!n.done&&noteDT(n)>=now).sort((a,b)=>noteDT(a)-noteDT(b)).slice(0,5);
+  h+='<div class="sec">Yaklaşan notlar</div>';
+  h+= up.length? up.map(upCard).join('') : '<div class="empty">Yaklaşan not yok. + ile ekleyin.</div>';
   const lb=lastBackupDays();
   if(lb==null?(S.notes.length+S.customers.length+S.suppliers.length+S.imports.length)>0:lb>=7)h+='<div class="card row" onclick="App.tab(\'yedek\')"><span class="grow">⚠️ '+(lb==null?'Henüz yedek almadınız.':lb+' gündür yedek almadınız.')+'</span><b style="color:var(--pri)">Yedekle ›</b></div>';
   return h;
 }
+function upCard(n){
+  const [y,m,d]=n.date.split('-');const o=!!OPEN[n.id];
+  const isT=n.date===TODAY;
+  let h='<div class="up'+(o?' open':'')+'" onclick="App.upT(\''+n.id+'\')"><div class="dt"><b>'+(+d)+'</b><span>'+AYLAR[+m-1].slice(0,3)+'</span></div>'+
+   '<div class="grow"><div class="tit ell">'+esc(n.title)+'</div><div class="mut">'+(isT?'Bugün':GUN[(new Date(n.date+'T00:00:00').getDay()+6)%7])+' · '+(n.time||'Saat yok')+(n.remind&&n.remind!=='none'?' · 🔔':'')+'</div></div><span class="arr">›</span></div>';
+  if(o)h+='<div class="upbody">'+(n.text?'<div style="white-space:pre-wrap;margin-bottom:10px">'+esc(n.text)+'</div>':'<div class="mut" style="margin-bottom:10px">Açıklama yok.</div>')+
+   '<div class="row" style="flex-wrap:wrap;gap:6px"><button class="btn sm" onclick="App.toggleNote(\''+n.id+'\')">✓ Tamamlandı</button><button class="btn sec2 sm" onclick="App.editNote(\''+n.id+'\')">Düzenle</button><a class="btn sec2 sm" href="'+esc(gcalLink(n))+'" target="_blank" rel="noopener">🔔 Takvime ekle</a></div></div>';
+  return h;
+}
+App.upT=id=>{OPEN[id]=!OPEN[id];render()};
 App.mon=d=>{V.month=new Date(V.month.getFullYear(),V.month.getMonth()+d,1);render()};
 App.sel=k=>{V.sel=k;render()};
 App.toggleNote=async id=>{const n=byId('notes',id);if(!n)return;const c=Object.assign({},n);delete c.id;c.done=!n.done;await save('notes',id,c)};

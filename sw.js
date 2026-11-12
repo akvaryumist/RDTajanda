@@ -1,6 +1,6 @@
 // Uygulama dosyalarını telefonda saklar; internet yokken de açılır.
 // Uygulamayı güncellediğimizde VERSION değişir, telefon yeni sürümü indirir.
-const VERSION = 'rdt-v1';
+const VERSION = 'rdt-v2';
 const FILES = ['./', 'index.html', 'manifest.json', 'xlsx.full.min.js', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
