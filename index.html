@@ -50,6 +50,11 @@ label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin:10px 
 .cal .d.s{background:var(--pri);color:#fff}
 .cal .d i{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:3px;background:var(--amb)}
 .cal .d.s i{background:#fff}
+.cal .d.hol{color:var(--red);font-weight:700}
+.cal .d.hol.o{color:var(--red)}
+.cal .d.s.hol{background:var(--red);color:#fff}
+.holb{background:#fdecea;color:#a93226;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-weight:600}
+@media (prefers-color-scheme:dark){.holb{background:#3a1d1a;color:#f1948a}}
 .mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .mhead button{border:0;background:var(--pri2);color:var(--pri);width:36px;height:36px;border-radius:18px;font-size:18px}
 .chk{width:24px;height:24px;border-radius:12px;border:2px solid var(--pri);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
@@ -212,14 +217,16 @@ function calView(){
   for(let i=0;i<42;i++){
     const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i); const k=ymd(d);
     if(i>=35&&d.getMonth()!==mo)break;
-    let c='d'; if(d.getMonth()!==mo)c+=' o'; if(k===TODAY)c+=' t'; if(k===V.sel)c+=' s';
+    let c='d'; if(d.getMonth()!==mo)c+=' o'; if(holOf(k))c+=' hol'; if(k===TODAY)c+=' t'; if(k===V.sel)c+=' s';
     h+='<div class="'+c+'" onclick="App.sel(\''+k+'\')">'+d.getDate()+(has[k]?'<i></i>':'')+'</div>';
   }
   h+='</div></div>';
   const day=S.notes.filter(n=>n.date===V.sel).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
-  if(day.length||V.sel!==TODAY){
+  const hol=holOf(V.sel);
+  if(day.length||V.sel!==TODAY||hol){
     h+='<div class="sec">'+fDate(V.sel)+(V.sel===TODAY?' · Bugün':'')+'</div>';
-    h+= day.length? day.map(n=>noteCard(n,false)).join('') : '<div class="empty" style="padding:10px">Bu gün için not yok.</div>';
+    if(hol)h+='<div class="holb">🇹🇷 '+esc(hol)+'</div>';
+    h+= day.length? day.map(n=>noteCard(n,false)).join('') : (hol?'':'<div class="empty" style="padding:10px">Bu gün için not yok.</div>');
   }
   const now=new Date();
   const up=S.notes.filter(n=>!n.done&&noteDT(n)>=now).sort((a,b)=>noteDT(a)-noteDT(b)).slice(0,5);
@@ -242,6 +249,33 @@ function upCard(n){
 }
 App.upT=id=>{OPEN[id]=!OPEN[id];render()};
 App.lateT=()=>{V.showLate=!V.showLate;render()};
+/* ---------- TATİLLER ---------- */
+// Dini bayramlar: Diyanet İşleri Başkanlığı takvimi. Yeni yıllar açıklandıkça eklenir.
+const BAYRAM={
+ 2026:[['R','2026-03-19',['2026-03-20','2026-03-21','2026-03-22']],['K','2026-05-26',['2026-05-27','2026-05-28','2026-05-29','2026-05-30']]],
+ 2027:[['R','2027-03-08',['2027-03-09','2027-03-10','2027-03-11']],['K','2027-05-15',['2027-05-16','2027-05-17','2027-05-18','2027-05-19']]],
+ 2028:[['R','2028-02-26',['2028-02-27','2028-02-28','2028-02-29']]]
+};
+const HCACHE={};
+function holidays(y){
+  if(HCACHE[y])return HCACHE[y];
+  const h={};const add=(k,t)=>{h[k]=h[k]?h[k]+' · '+t:t};
+  add(y+'-01-01','Yılbaşı');
+  add(y+'-04-23','Ulusal Egemenlik ve Çocuk Bayramı');
+  add(y+'-05-01','Emek ve Dayanışma Günü');
+  add(y+'-05-19','Atatürk\'ü Anma, Gençlik ve Spor Bayramı');
+  add(y+'-07-15','Demokrasi ve Millî Birlik Günü');
+  add(y+'-08-30','Zafer Bayramı');
+  add(y+'-10-28','Cumhuriyet Bayramı Arifesi (yarım gün, 13.00\'ten itibaren)');
+  add(y+'-10-29','Cumhuriyet Bayramı');
+  (BAYRAM[y]||[]).forEach(([t,arife,days])=>{
+    const n=t==='R'?'Ramazan Bayramı':'Kurban Bayramı';
+    add(arife,n+' Arifesi (yarım gün, 13.00\'ten itibaren)');
+    days.forEach((d,i)=>add(d,n+' '+(i+1)+'. gün'));
+  });
+  return HCACHE[y]=h;
+}
+const holOf=k=>holidays(+k.slice(0,4))[k];
 App.mon=d=>{V.month=new Date(V.month.getFullYear(),V.month.getMonth()+d,1);render()};
 App.sel=k=>{V.sel=k;render()};
 App.toggleNote=async id=>{const n=byId('notes',id);if(!n)return;const c=Object.assign({},n);delete c.id;c.done=!n.done;await save('notes',id,c)};
